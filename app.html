@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChocMath</title>
+<style>
+  body { font-family: Georgia, serif; max-width: 760px; margin: 0 auto; padding: 1em; color: #2f241d; background: #faf5ef; }
+  h1 { font-size: 1.5em; }
+  .card { background: #fff; border: 1px solid #e8dccf; border-radius: 10px; padding: 1em 1.2em; margin: 1em 0; }
+  .card h2 { margin-top: 0; font-size: 1.1em; }
+  label { display: inline-block; min-width: 180px; margin: 0.3em 0; }
+  input, select { padding: 0.3em; border: 1px solid #cbb9a6; border-radius: 6px; width: 110px; }
+  .out { background: #f5ece1; border-left: 4px solid #4a2c1a; padding: 0.6em 0.9em; border-radius: 0 8px 8px 0; margin-top: 0.7em; }
+  .preset { display:inline-block; margin: 0 0.4em 0.4em 0; padding: 0.25em 0.7em; background: #ecdfd0; border-radius: 20px; cursor: pointer; font-size: 0.85em; border: 1px solid #cbb9a6; }
+  .note { color: #71604f; font-size: 0.9em; }
+  a { color: #4a2c1a; }
+</style>
+</head>
+<body>
+<h1>&#127851; ChocMath</h1>
+<p class="note">Constants: roast loses 6% of raw weight, winnowing loses 22% of roasted weight (husk). Temper working points: dark 31.5C, milk 29.5C, white 28.5C. Standard bar mold 60g. <a href="index.html">About</a></p>
+
+<div class="card">
+  <h2>1. Beans to nibs</h2>
+  <div>
+    <span class="preset" data-raw="500">500g test batch</span>
+    <span class="preset" data-raw="1000">1 kg</span>
+    <span class="preset" data-raw="2500">2.5 kg</span>
+  </div>
+  <label for="raw">Raw beans (g):</label><input id="raw" type="number" value="1000" min="0">
+  <div class="out" id="nibOut">-</div>
+</div>
+
+<div class="card">
+  <h2>2. Recipe ratio</h2>
+  <label for="dark">Darkness target (%):</label><input id="dark" type="number" value="70" min="1" max="100">
+  <div class="out" id="recipeOut">-</div>
+  <div class="out" id="ratioOut">-</div>
+</div>
+
+<div class="card">
+  <h2>3. Temper check</h2>
+  <label for="kind">Chocolate:</label>
+  <select id="kind">
+    <option value="dark" selected>Dark</option>
+    <option value="milk">Milk</option>
+    <option value="white">White</option>
+  </select><br>
+  <label for="temp">Current temp (C):</label><input id="temp" type="number" value="31.5" step="0.1" min="0">
+  <div class="out" id="temperOut">-</div>
+</div>
+
+<div class="card">
+  <h2>4. Bars and cost</h2>
+  <label for="barG">Bar mold size (g):</label><input id="barG" type="number" value="60" min="5"><br>
+  <label for="beanCost">Beans ($/kg):</label><input id="beanCost" type="number" value="14" min="0" step="0.5"><br>
+  <label for="sugarCost">Sugar ($/kg):</label><input id="sugarCost" type="number" value="1.5" min="0" step="0.1">
+  <div class="out" id="barOut">-</div>
+  <div class="out" id="costOut">-</div>
+</div>
+
+<script src="engine.js"></script>
+<script>
+(function () {
+  function num(id) { return parseFloat(document.getElementById(id).value) || 0; }
+  function str(id) { return document.getElementById(id).value; }
+  function fmt(n, d) { return n.toFixed(d === undefined ? 0 : d); }
+
+  function update() {
+    var n = ChocMath.nibsFromRaw(num('raw'));
+    var yieldPct = num('raw') > 0 ? n.nibs / num('raw') : 0;
+    document.getElementById('nibOut').textContent =
+      fmt(n.roasted) + 'g roasted, ' + fmt(n.nibs) + 'g nibs (' + fmt(n.husk) + 'g husk for the garden). ' +
+      ChocMath.nibVerdict(yieldPct);
+
+    var r = ChocMath.recipe(n.nibs, Math.min(100, Math.max(1, num('dark'))));
+    document.getElementById('recipeOut').textContent =
+      'For ' + num('dark') + '%: ' + fmt(r.total) + 'g total batch = ' + fmt(n.nibs) + 'g nibs + ' + fmt(r.sugar) + 'g sugar.';
+    document.getElementById('ratioOut').textContent = ChocMath.recipeVerdict(num('dark'));
+
+    document.getElementById('temperOut').textContent = ChocMath.temperVerdict(str('kind'), num('temp'));
+
+    var b = ChocMath.bars(r.total, Math.max(5, num('barG')));
+    var barCount = Math.floor(b.bars);
+    document.getElementById('barOut').textContent =
+      barCount + ' bars of ' + num('barG') + 'g, plus ' + fmt(b.leftover) + 'g of tasting scraps for the chocolatier.';
+    var perBar = barCount > 0 ? ChocMath.costPerBar(n.nibs, num('beanCost'), r.sugar, num('sugarCost'), barCount) : 0;
+    document.getElementById('costOut').textContent =
+      '$' + perBar.toFixed(2) + ' per bar in ingredients. ' + ChocMath.costVerdict(perBar);
+  }
+
+  var presets = document.querySelectorAll('.preset');
+  for (var i = 0; i < presets.length; i++) {
+    presets[i].addEventListener('click', function () {
+      document.getElementById('raw').value = this.getAttribute('data-raw');
+      update();
+    });
+  }
+  var inputs = document.querySelectorAll('input, select');
+  for (var j = 0; j < inputs.length; j++) inputs[j].addEventListener('input', update);
+  update();
+})();
+</script>
+</body>
+</html>
